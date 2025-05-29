@@ -7,12 +7,28 @@ def analyze_dataframe(df: pd.DataFrame):
     result['sutun_sayisi'] = len(df.columns)
 
     dtypes = df.dtypes
-    result['veri_tipleri'] = {
-        "sayisal": sum(dtypes.apply(lambda x: pd.api.types.is_numeric_dtype(x))),
-        "kategorik": sum(dtypes.apply(lambda x: pd.api.types.is_categorical_dtype(x) or pd.api.types.is_object_dtype(x))),
-        "tarih": sum(dtypes.apply(lambda x: pd.api.types.is_datetime64_any_dtype(x))),
-        "metin": sum(dtypes.apply(lambda x: x == 'string'))
-    }
+    result['veri_tipleri'] = [
+        {
+            "name":"Sayisal",
+            "count":sum(dtypes.apply(lambda x: pd.api.types.is_numeric_dtype(x)))
+         
+         },
+         {
+            "name":"Kategorik",
+            "count":sum(dtypes.apply(lambda x: pd.api.types.is_categorical_dtype(x) or pd.api.types.is_object_dtype(x)))
+         
+         },
+         {
+            "name":"Tarih",
+            "count":sum(dtypes.apply(lambda x: pd.api.types.is_datetime64_any_dtype(x)))
+         
+         },
+         {
+            "name":"Metin",
+            "count":sum(dtypes.apply(lambda x: x == 'string'))
+         
+         }
+    ]
 
     result['eksik_degerler'] = int(df.isnull().sum().sum())
     result['yinelenen_satirlar'] = int(df.duplicated().sum())

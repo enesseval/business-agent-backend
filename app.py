@@ -6,6 +6,7 @@ from io import BytesIO
 import re
 import asyncio
 import json
+import datetime
 
 from agents.analysis_service import send_to_ai_for_analyze
 from utils.dataframe_utils import analyze_dataframe
@@ -31,7 +32,7 @@ def clean_result_string(s):
         s = s[:-3].rstrip("\n")
     return s
 
-async def stream_analysis(contents:bytes, api_key: str):
+async def stream_analysis(contents:bytes, api_key: str,file_name:str):
     yield "data: 📁 CSV dosyası başarıyla alındı.\n\n"
     await asyncio.sleep(2)
 
@@ -82,6 +83,7 @@ async def stream_analysis(contents:bytes, api_key: str):
         yield f"data: ❌ AI destekli veri temizleme sırasında hata: {str(e)}\n\n"
         return
     
+    
     yield "data: ☁️ Temizlenmiş veri sunucuya yükleniyor...\n\n"
     await asyncio.sleep(1)
 
@@ -92,7 +94,7 @@ async def stream_analysis(contents:bytes, api_key: str):
         yield "data: ❌ Veri yüklenirken hata oluştu. Lütfen tekrar deneyin.\n\n"
         return
     
-    yield "data: ✅ Veri başarıyla yüklendi.\n\n"
+    yield "data: ✅ Veri başarıyla yüklendi. Grafik önerileri ve analizler oluşturuluyor...\n\n"
     await asyncio.sleep(1)
 
     prompt = f"""
@@ -105,8 +107,8 @@ async def stream_analysis(contents:bytes, api_key: str):
     Each chart idea should include:
     - Title
     - Chart type (from allowed types)
-    - X-axis and Y-axis mapping
-    - Optional: group_by or filter fields
+    - x_axis and y_axis (using original_column_keys)
+    - Optional: group_by or filter (also use original_column_keys)
 
     Insights:
     - Write between half a page to one full page of analysis
@@ -133,12 +135,18 @@ async def stream_analysis(contents:bytes, api_key: str):
     {{
       "title": "Monthly Sales Trend",
       "chart_type": "Line Chart",
-      "x_axis": "Month",
-      "y_axis": "Sales",
+      "x_axis": {{
+        "original_col_name:".....",
+        "replaced_col_name:"if the language needs to be changed, change it, and if the column name is in a format like ColumnName or column_name, update it to Column Name",
+      }},
+      "y_axis": {{
+        "original_col_name:".....",
+        "replaced_col_name:"if the language needs to be changed, change it, and if the column name is in a format like ColumnName or column_name, update it to Column Name",
+      }},
       "group_by": "Region"
     }}
   ],
-  "insights": "### Insights\\nSales increased steadily from January to June, with a sharp dip in July likely due to supply chain issues..."
+  "insights": "### Insights\\nSales increased steadily from January to June, with a sharp dip in July likely due to supply chain issues...",
 }}
 
     CSV Info:
@@ -171,11 +179,14 @@ async def stream_analysis(contents:bytes, api_key: str):
     except json.JSONDecodeError as e:
         print("JSON parse hatası:", e)
         json_obj = None
+  
 
     final_data = {
         "result": json_obj,
         "analyze_result": analyze_result,
-        "cleaned_data": df.to_dict(orient="records")
+        "cleaned_data": df.to_dict(orient="records"),
+        "file_name": file_name,
+        "processing_date": datetime.datetime.now().strftime("%Y-%m-%d"),
     }
 
     yield f"data_last: {json.dumps(final_data)}\n\n"
@@ -184,4 +195,4 @@ async def stream_analysis(contents:bytes, api_key: str):
 @app.post("/upload-stream")
 async def upload_stream(file: UploadFile = File(...), api_key: str = Form(...)):
     contents = await file.read()
-    return StreamingResponse(stream_analysis(contents, api_key), media_type="text/event-stream")
+    return StreamingResponse(stream_analysis(contents, api_key,file.filename), media_type="text/event-stream")
